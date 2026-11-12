@@ -6,8 +6,8 @@ import {
   ServerAPI,
   staticClasses,
 } from "decky-frontend-lib";
-import { useState, useEffect, VFC } from "react";
-import { FaPlayStation, FaSync, FaExclamationTriangle, FaCheckCircle, FaDownload } from "react-icons/fa";
+import { useState, useEffect, VFC, ReactNode } from "react";
+import { FaPlaystation, FaSync, FaExclamationTriangle, FaDownload } from "react-icons/fa";
 
 interface UpdateInfo {
   success: boolean;
@@ -18,6 +18,25 @@ interface UpdateInfo {
   published_at?: string;
   error?: string;
 }
+
+interface UpdateResult {
+  success: boolean;
+  message: string;
+}
+
+const CustomButtonItem: VFC<{
+  layout?: "below" | "inline";
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}> = ({ layout = "below", disabled, onClick, children }) => {
+  const Component = ButtonItem as any;
+  return (
+    <Component layout={layout} disabled={disabled} onClick={onClick}>
+      {children}
+    </Component>
+  );
+};
 
 const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   const [sysType, setSysType] = useState<string>("Verificando...");
@@ -32,23 +51,24 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     setStatusMessage("");
     try {
       const typeRes = await serverAPI.callPluginMethod<{}, string>("get_system_type", {});
-      if (typeRes.success) {
+      if (typeRes.success && typeof typeRes.result === "string") {
         setSysType(typeRes.result);
       }
 
       const verRes = await serverAPI.callPluginMethod<{}, string>("get_current_version", {});
-      if (verRes.success) {
+      if (verRes.success && typeof verRes.result === "string") {
         setCurrentVersion(verRes.result);
       }
 
       const checkRes = await serverAPI.callPluginMethod<{}, UpdateInfo>("check_github_update", {});
-      if (checkRes.success && checkRes.result.success) {
+      if (checkRes.success && typeof checkRes.result === "object" && checkRes.result) {
         setUpdateInfo(checkRes.result);
         if (checkRes.result.latest_version && verRes.result && checkRes.result.latest_version !== verRes.result) {
           setStatusMessage(`Nova versão disponível: ${checkRes.result.latest_version}`);
         }
       } else {
-        setStatusMessage(checkRes.result?.error || "Não foi possível verificar a API do GitHub.");
+        const err = checkRes.result && typeof checkRes.result === "object" ? checkRes.result.error : undefined;
+        setStatusMessage(err || "Não foi possível verificar a API do GitHub.");
       }
     } catch (e: any) {
       setStatusMessage("Erro de comunicação com o backend do plugin.");
@@ -65,14 +85,15 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     setIsUpdating(true);
     setStatusMessage(`Executando atualização via ${sysType.toUpperCase()}... Isso pode levar alguns minutos.`);
     try {
-      const res = await serverAPI.callPluginMethod<{ method: string }, { success: boolean; message: string }>(
+      const res = await serverAPI.callPluginMethod<{ method: string }, UpdateResult>(
         "trigger_update",
         { method: sysType }
       );
-      if (res.success && res.result.success) {
+      if (res.success && typeof res.result === "object" && res.result.success) {
         setStatusMessage(res.result.message);
       } else {
-        setStatusMessage(res.result?.message || "Ocorreu uma falha durante o processo de atualização.");
+        const msg = res.result && typeof res.result === "object" ? res.result.message : undefined;
+        setStatusMessage(msg || "Ocorreu uma falha durante o processo de atualização.");
       }
     } catch (err: any) {
       setStatusMessage(`Erro crítico: ${err.message || err}`);
@@ -119,7 +140,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           >
             <FaExclamationTriangle style={{ color: "#e67e22", marginTop: "2px", flexShrink: 0 }} />
             <div>
-              <strong>Atenção:</strong> Sua instalação é Legacy. Versões modernas (v2.5+) utilizam <code>bootc</code> containerizado. A migração completa exige regravar a imagem no drive.
+              <strong>Atenção:</strong> Sua instalação é Legacy. Versões modernas utilizam <code>bootc</code> containerizado. A migração completa exige regravar a imagem no drive.
             </div>
           </div>
         </PanelSectionRow>
@@ -143,7 +164,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
       )}
 
       <PanelSectionRow>
-        <ButtonItem
+        <CustomButtonItem
           layout="below"
           disabled={isChecking || isUpdating}
           onClick={refreshStatus}
@@ -152,11 +173,11 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
             <FaSync />
             <span>{isChecking ? "Verificando..." : "Checar Atualizações"}</span>
           </div>
-        </ButtonItem>
+        </CustomButtonItem>
       </PanelSectionRow>
 
       <PanelSectionRow>
-        <ButtonItem
+        <CustomButtonItem
           layout="below"
           disabled={isUpdating || isChecking}
           onClick={handleUpdate}
@@ -165,7 +186,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
             <FaDownload />
             <span>{isUpdating ? "Atualizando..." : `Atualizar (${sysType.toUpperCase()})`}</span>
           </div>
-        </ButtonItem>
+        </CustomButtonItem>
       </PanelSectionRow>
     </PanelSection>
   );
@@ -175,6 +196,6 @@ export default definePlugin((serverAPI: ServerAPI) => {
   return {
     title: <div className={staticClasses.Title}>PS5 Updater</div>,
     content: <Content serverAPI={serverAPI} />,
-    icon: <FaPlayStation />,
+    icon: <FaPlaystation />,
   };
 });
