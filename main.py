@@ -90,7 +90,7 @@ def get_installed_version():
     return "Desconhecida"
 
 async def fetch_github_release():
-    url = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases/latest"
+    url = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases"
     raw_data = None
 
     # Tentativa 1: urllib
@@ -101,11 +101,16 @@ async def fetch_github_release():
         })
         with urllib.request.urlopen(req, timeout=10) as response:
             if response.status == 200:
-                raw_data = json.loads(response.read().decode("utf-8"))
+                releases = json.loads(response.read().decode("utf-8"))
+                if isinstance(releases, list) and len(releases) > 0:
+                    for rel in releases:
+                        if not rel.get("draft", False):
+                            raw_data = rel
+                            break
     except Exception as e:
-        logging.warning(f"urllib falhou, tentando curl: {e}")
+        logging.warning(f"urllib falhou em /releases: {e}")
 
-    # Tentativa 2: curl caso urllib falhe por SSL ou ambiente de container
+    # Tentativa 2: curl caso urllib falhe
     if not raw_data:
         try:
             curl_res = subprocess.run(
@@ -115,9 +120,29 @@ async def fetch_github_release():
                 timeout=12
             )
             if curl_res.returncode == 0 and curl_res.stdout:
-                raw_data = json.loads(curl_res.stdout)
+                releases = json.loads(curl_res.stdout)
+                if isinstance(releases, list) and len(releases) > 0:
+                    for rel in releases:
+                        if not rel.get("draft", False):
+                            raw_data = rel
+                            break
         except Exception as e:
-            logging.error(f"curl também falhou: {e}")
+            logging.error(f"curl falhou: {e}")
+
+    # Fallback para /releases/latest caso /releases não retorne
+    if not raw_data:
+        url_latest = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases/latest"
+        try:
+            curl_res = subprocess.run(
+                ["curl", "-sL", "-H", "User-Agent: Decky-PS5-Bazzite-Updater", url_latest],
+                capture_output=True,
+                text=True,
+                timeout=12
+            )
+            if curl_res.returncode == 0 and curl_res.stdout:
+                raw_data = json.loads(curl_res.stdout)
+        except Exception:
+            pass
 
     if not raw_data or "tag_name" not in raw_data:
         return {

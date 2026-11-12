@@ -9,18 +9,31 @@ REPO = "VivaLaVent/ps5-bazzite-deck"
 OUTPUT_FILE = "payloads.json"
 
 def get_latest_release(repo):
-    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    # Consulta a lista geral de releases para incluir também pre-releases lançadas pelo autor
+    url = f"https://api.github.com/repos/{repo}/releases"
     headers = {
         "User-Agent": "PS5-Payload-AutoUpdater",
         "Accept": "application/vnd.github.v3+json"
     }
-    # Se houver token do GitHub Actions no ambiente, use para evitar rate limit
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_token:
         headers["Authorization"] = f"Bearer {github_token}"
 
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=15) as res:
+    try:
+        with urllib.request.urlopen(req, timeout=15) as res:
+            releases = json.loads(res.read().decode("utf-8"))
+            if isinstance(releases, list) and len(releases) > 0:
+                for rel in releases:
+                    if not rel.get("draft", False):
+                        return rel
+    except Exception as e:
+        print(f"Aviso ao consultar /releases: {e}, tentando /releases/latest...")
+
+    # Fallback para releases/latest
+    url_latest = f"https://api.github.com/repos/{repo}/releases/latest"
+    req_latest = urllib.request.Request(url_latest, headers=headers)
+    with urllib.request.urlopen(req_latest, timeout=15) as res:
         return json.loads(res.read().decode("utf-8"))
 
 def calculate_sha256(url):
@@ -52,18 +65,16 @@ def main():
     elf_asset = None
     for asset in assets:
         name = asset.get("name", "").lower()
-        if name.endswith(".elf"):
+        if name.endswith(".elf") and not name.endswith(".sha256"):
             elf_asset = asset
             break
 
-    # Se a release tiver um ELF anexado:
     if elf_asset:
         elf_name = elf_asset.get("name")
         download_url = elf_asset.get("browser_download_url")
     else:
-        # Fallback caso a release use convenção padrão ou link de kexec
-        elf_name = "bootloader.elf"
-        download_url = f"https://github.com/{REPO}/releases/download/{tag}/bootloader.elf"
+        elf_name = f"bazzite-bootc-loader-{tag}.elf"
+        download_url = f"https://github.com/{REPO}/releases/download/{tag}/{elf_name}"
 
     print(f"Asset ELF alvo: {elf_name} -> {download_url}")
     
@@ -72,7 +83,6 @@ def main():
         print("Calculando SHA-256 do arquivo...")
         checksum = calculate_sha256(download_url)
 
-    # Lê o payloads.json atual (se existir) para não sobrescrever outros dados
     payloads_data = {
         "name": "PS5 Bazzite Deck Payloads",
         "description": "Feed automático com atualizações do PS5 Bazzite Deck",
@@ -86,13 +96,11 @@ def main():
         except Exception:
             pass
 
-    # Atualiza ou cria a entrada do payload
     payload_id = "ps5-bazzite-bootloader"
     updated = False
 
     for item in payloads_data.setdefault("payloads", []):
         if item.get("id") == payload_id:
-            # Checa se a versão mudou
             if item.get("version") == tag and item.get("checksum") == checksum:
                 print("O payloads.json já está atualizado na versão mais recente. Nenhuma alteração necessária.")
                 sys.exit(0)
