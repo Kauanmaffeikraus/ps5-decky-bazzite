@@ -95,6 +95,8 @@
     return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M569.517 440.013C587.975 472.007 564.806 512 527.94 512H48.054c-36.937 0-59.999-40.055-41.577-71.987L246.423 23.985c18.467-32.009 64.72-31.951 83.154 0l239.94 416.028zM288 354c-25.405 0-46 20.595-46 46s20.595 46 46 46 46-20.595 46-46-20.595-46-46-46zm-43.673-165.346l7.418 136c.347 6.364 5.609 11.346 11.982 11.346h48.546c6.373 0 11.635-4.982 11.982-11.346l7.418-136c.375-6.874-5.098-12.654-11.982-12.654h-63.383c-6.884 0-12.356 5.78-11.981 12.654z"},"child":[]}]})(props);
   }function FaDownload (props) {
     return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M216 0h80c13.3 0 24 10.7 24 24v168h87.7c17.8 0 26.7 21.5 14.1 34.1L269.7 378.3c-7.5 7.5-19.8 7.5-27.3 0L90.1 226.1c-12.6-12.6-3.7-34.1 14.1-34.1H192V24c0-13.3 10.7-24 24-24zm296 376v112c0 13.3-10.7 24-24 24H24c-13.3 0-24-10.7-24-24V376c0-13.3 10.7-24 24-24h146.7l49 49c20.1 20.1 52.5 20.1 72.6 0l49-49H488c13.3 0 24 10.7 24 24zm-124 88c0-11-9-20-20-20s-20 9-20 20 9 20 20 20 20-9 20-20zm64 0c0-11-9-20-20-20s-20 9-20 20 9 20 20 20 20-9 20-20z"},"child":[]}]})(props);
+  }function FaCheckCircle (props) {
+    return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zM227.314 387.314l184-184c6.248-6.248 6.248-16.379 0-22.627l-22.627-22.627c-6.248-6.249-16.379-6.249-22.628 0L216 308.118l-70.059-70.059c-6.248-6.248-16.379-6.248-22.628 0l-22.627 22.627c-6.248 6.248-6.248 16.379 0 22.627l104 104c6.249 6.249 16.379 6.249 22.628.001z"},"child":[]}]})(props);
   }
 
   const CustomButtonItem = ({ layout = "below", disabled, onClick, children }) => {
@@ -102,29 +104,39 @@
       return (jsxRuntimeExports.jsx(Component, { layout: layout, disabled: disabled, onClick: onClick, children: children }));
   };
   const Content = ({ serverAPI }) => {
-      const [sysType, setSysType] = React.useState("Verificando...");
+      const [mode, setMode] = React.useState("loading"); // 'legacy', 'bootc', 'unset', 'loading'
       const [currentVersion, setCurrentVersion] = React.useState("");
       const [updateInfo, setUpdateInfo] = React.useState(null);
       const [isChecking, setIsChecking] = React.useState(false);
       const [isUpdating, setIsUpdating] = React.useState(false);
       const [statusMessage, setStatusMessage] = React.useState("");
-      const refreshStatus = async () => {
-          setIsChecking(true);
-          setStatusMessage("");
+      const loadModeAndStatus = async () => {
           try {
-              const typeRes = await serverAPI.callPluginMethod("get_system_type", {});
-              if (typeRes.success && typeof typeRes.result === "string") {
-                  setSysType(typeRes.result);
+              const modeRes = await serverAPI.callPluginMethod("get_saved_mode", {});
+              if (modeRes.success && typeof modeRes.result === "string") {
+                  setMode(modeRes.result);
+              }
+              else {
+                  setMode("legacy");
               }
               const verRes = await serverAPI.callPluginMethod("get_current_version", {});
               if (verRes.success && typeof verRes.result === "string") {
                   setCurrentVersion(verRes.result);
               }
+              await checkUpdates();
+          }
+          catch (e) {
+              setMode("legacy");
+          }
+      };
+      const checkUpdates = async () => {
+          setIsChecking(true);
+          try {
               const checkRes = await serverAPI.callPluginMethod("check_github_update", {});
               if (checkRes.success && typeof checkRes.result === "object" && checkRes.result) {
                   setUpdateInfo(checkRes.result);
-                  if (checkRes.result.latest_version && verRes.result && checkRes.result.latest_version !== verRes.result) {
-                      setStatusMessage(`Nova versão disponível: ${checkRes.result.latest_version}`);
+                  if (checkRes.result.latest_version) {
+                      setStatusMessage(`Última versão disponível no GitHub: ${checkRes.result.latest_version}`);
                   }
               }
               else {
@@ -133,20 +145,29 @@
               }
           }
           catch (e) {
-              setStatusMessage("Erro de comunicação com o backend do plugin.");
+              setStatusMessage("Erro de comunicação com o GitHub.");
           }
           finally {
               setIsChecking(false);
           }
       };
       React.useEffect(() => {
-          refreshStatus();
+          loadModeAndStatus();
       }, []);
+      const handleSelectMode = async (selected) => {
+          setMode(selected);
+          setStatusMessage(`Modo alterado para: ${selected.toUpperCase()}`);
+          await serverAPI.callPluginMethod("set_mode", { mode: selected });
+      };
       const handleUpdate = async () => {
+          if (mode === "unset") {
+              setStatusMessage("Selecione primeiro se o seu sistema é Legacy ou Bootc!");
+              return;
+          }
           setIsUpdating(true);
-          setStatusMessage(`Executando atualização via ${sysType.toUpperCase()}... Isso pode levar alguns minutos.`);
+          setStatusMessage(`Iniciando atualização via modo ${mode.toUpperCase()}... Isso pode levar alguns minutos.`);
           try {
-              const res = await serverAPI.callPluginMethod("trigger_update", { method: sysType });
+              const res = await serverAPI.callPluginMethod("trigger_update", { method: mode });
               if (res.success && typeof res.result === "object" && res.result.success) {
                   setStatusMessage(res.result.message);
               }
@@ -162,7 +183,15 @@
               setIsUpdating(false);
           }
       };
-      return (jsxRuntimeExports.jsxs(deckyFrontendLib.PanelSection, { title: "PS5 Bazzite Updater", children: [jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }, children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Tipo de Sistema:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: sysType === "bootc" ? "#2ecc71" : "#e67e22", fontWeight: "bold" }, children: sysType.toUpperCase() })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Vers\u00E3o Instalada:" }), " ", currentVersion || "Identificando..."] }), updateInfo?.latest_version && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "\u00DAltima Vers\u00E3o Online:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: "#3498db" }, children: updateInfo.latest_version })] }))] }) }), sysType === "legacy" && (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: {
+      // Se o usuário ainda não escolheu o modo na primeira vez
+      if (mode === "unset") {
+          return (jsxRuntimeExports.jsxs(deckyFrontendLib.PanelSection, { title: "Configura\u00E7\u00E3o Inicial", children: [jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: { fontSize: "13px", lineHeight: "1.4" }, children: ["Bem-vindo ao ", jsxRuntimeExports.jsx("strong", { children: "PS5 Bazzite Updater" }), "! Como seu sistema foi instalado?"] }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { onClick: () => handleSelectMode("legacy"), children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }, children: [jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", color: "#e67e22" }, children: "M\u00E9todo Legacy (Recomendado para voc\u00EA)" }), jsxRuntimeExports.jsx("span", { style: { fontSize: "11px", opacity: 0.8 }, children: "Vers\u00E3o cl\u00E1ssica/antiga. Atualiza baixando o bundle oficial e rodando o script interno." })] }) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { onClick: () => handleSelectMode("bootc"), children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }, children: [jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", color: "#2ecc71" }, children: "M\u00E9todo Bootc" }), jsxRuntimeExports.jsxs("span", { style: { fontSize: "11px", opacity: 0.8 }, children: ["Para sistemas v2.5+ baseados em containers e gerenciados via ", jsxRuntimeExports.jsx("code", { children: "bootc upgrade" }), "."] })] }) }) })] }));
+      }
+      const dropdownOptions = [
+          { data: "legacy", label: "Método Legacy (Scripts / Tarball)" },
+          { data: "bootc", label: "Método Bootc (sudo bootc upgrade)" },
+      ];
+      return (jsxRuntimeExports.jsxs(deckyFrontendLib.PanelSection, { title: "PS5 Bazzite Updater", children: [jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(deckyFrontendLib.DropdownItem, { label: "Modo de Atualiza\u00E7\u00E3o", description: "Voc\u00EA pode alternar entre Legacy e Bootc quando quiser", rgOptions: dropdownOptions, selectedOption: mode, onChange: (opt) => handleSelectMode(opt.data) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }, children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Ativo:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: mode === "bootc" ? "#2ecc71" : "#e67e22", fontWeight: "bold" }, children: mode.toUpperCase() })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Vers\u00E3o Instalada:" }), " ", currentVersion || "Identificando..."] }), updateInfo?.latest_version && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "\u00DAltima Vers\u00E3o Online:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: "#3498db" }, children: updateInfo.latest_version })] }))] }) }), mode === "legacy" ? (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: {
                           backgroundColor: "rgba(230, 126, 34, 0.15)",
                           border: "1px solid #e67e22",
                           borderRadius: "4px",
@@ -171,14 +200,23 @@
                           alignItems: "flex-start",
                           gap: "8px",
                           fontSize: "12px",
-                      }, children: [jsxRuntimeExports.jsx(FaExclamationTriangle, { style: { color: "#e67e22", marginTop: "2px", flexShrink: 0 } }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Aten\u00E7\u00E3o:" }), " Sua instala\u00E7\u00E3o \u00E9 Legacy. Vers\u00F5es modernas utilizam ", jsxRuntimeExports.jsx("code", { children: "bootc" }), " containerizado. A migra\u00E7\u00E3o completa exige regravar a imagem no drive."] })] }) })), statusMessage && (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx("div", { style: {
+                      }, children: [jsxRuntimeExports.jsx(FaExclamationTriangle, { style: { color: "#e67e22", marginTop: "2px", flexShrink: 0 } }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Legacy selecionado:" }), " As atualiza\u00E7\u00F5es ser\u00E3o feitas baixando o pacote oficial de atualiza\u00E7\u00E3o da release (", jsxRuntimeExports.jsx("code", { children: "update.tar.xz" }), ") e executando o ", jsxRuntimeExports.jsx("code", { children: "update.sh" }), "."] })] }) })) : (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: {
+                          backgroundColor: "rgba(46, 204, 113, 0.15)",
+                          border: "1px solid #2ecc71",
+                          borderRadius: "4px",
+                          padding: "8px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "8px",
+                          fontSize: "12px",
+                      }, children: [jsxRuntimeExports.jsx(FaCheckCircle, { style: { color: "#2ecc71", marginTop: "2px", flexShrink: 0 } }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Bootc selecionado:" }), " Atualiza\u00E7\u00F5es at\u00F4micas containerizadas via ", jsxRuntimeExports.jsx("code", { children: "bootc upgrade" }), "."] })] }) })), statusMessage && (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx("div", { style: {
                           padding: "8px",
                           borderRadius: "4px",
                           backgroundColor: "rgba(52, 152, 219, 0.15)",
                           border: "1px solid #3498db",
                           fontSize: "12px",
                           whiteSpace: "pre-wrap",
-                      }, children: statusMessage }) })), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: refreshStatus, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaSync, {}), jsxRuntimeExports.jsx("span", { children: isChecking ? "Verificando..." : "Checar Atualizações" })] }) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isUpdating || isChecking, onClick: handleUpdate, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaDownload, {}), jsxRuntimeExports.jsx("span", { children: isUpdating ? "Atualizando..." : `Atualizar (${sysType.toUpperCase()})` })] }) }) })] }));
+                      }, children: statusMessage }) })), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: checkUpdates, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaSync, {}), jsxRuntimeExports.jsx("span", { children: isChecking ? "Verificando..." : "Checar Atualizações" })] }) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isUpdating || isChecking, onClick: handleUpdate, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaDownload, {}), jsxRuntimeExports.jsx("span", { children: isUpdating ? "Atualizando..." : `Atualizar Agora (${mode.toUpperCase()})` })] }) }) })] }));
   };
   var index = deckyFrontendLib.definePlugin((serverAPI) => {
       return {
