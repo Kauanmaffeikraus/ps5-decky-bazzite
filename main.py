@@ -220,18 +220,20 @@ class Plugin:
                 os.makedirs(work_dir, exist_ok=True)
 
                 tar_path = os.path.join(work_dir, "update.tar.xz")
-                logging.info(f"Baixando {legacy_tar_url} com curl...")
-                dl_res = subprocess.run(
-                    ["curl", "-L", "-o", tar_path, legacy_tar_url],
-                    capture_output=True,
-                    text=True,
-                    timeout=300
-                )
-                if dl_res.returncode != 0:
-                    return {
-                        "success": False,
-                        "message": f"Falha ao baixar o pacote de atualização: {dl_res.stderr}"
-                    }
+                # Se o arquivo já foi baixado e tem tamanho válido (> 100MB), pula o download
+                if not (os.path.exists(tar_path) and os.path.getsize(tar_path) > 100 * 1024 * 1024):
+                    logging.info(f"Baixando {legacy_tar_url} com curl...")
+                    dl_res = subprocess.run(
+                        ["curl", "-L", "-o", tar_path, legacy_tar_url],
+                        capture_output=True,
+                        text=True,
+                        timeout=400
+                    )
+                    if dl_res.returncode != 0:
+                        return {
+                            "success": False,
+                            "message": f"Falha ao baixar o pacote de atualização: {dl_res.stderr}"
+                        }
 
                 logging.info("Extraindo pacote de atualização...")
                 tar_res = subprocess.run(["tar", "-xf", tar_path, "-C", work_dir], capture_output=True, text=True)
@@ -241,21 +243,35 @@ class Plugin:
                         "message": f"Falha ao descompactar pacote: {tar_res.stderr}"
                     }
 
-                update_script = os.path.join(work_dir, "update.sh")
-                if os.path.exists(update_script):
+                # Localiza o update.sh mesmo que tenha sido extraído dentro de uma subpasta
+                update_script = None
+                script_dir = work_dir
+                for root, dirs, files in os.walk(work_dir):
+                    if "update.sh" in files:
+                        update_script = os.path.join(root, "update.sh")
+                        script_dir = root
+                        break
+
+                if update_script and os.path.exists(update_script):
                     os.chmod(update_script, 0o755)
-                    logging.info("Executando update.sh...")
+                    logging.info(f"Executando update.sh em {script_dir}...")
                     run_res = subprocess.run(
-                        ["bash", update_script],
-                        cwd=work_dir,
+                        ["bash", "update.sh"],
+                        cwd=script_dir,
                         capture_output=True,
                         text=True,
                         timeout=600
                     )
-                    return {
-                        "success": run_res.returncode == 0,
-                        "message": run_res.stdout if run_res.returncode == 0 else run_res.stderr
-                    }
+                    if run_res.returncode == 0:
+                        return {
+                            "success": True,
+                            "message": "Atualização concluída com sucesso! Reinicie o console para aplicar o novo kernel e módulos."
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "message": f"Erro durante update.sh:\n{run_res.stderr or run_res.stdout}"
+                        }
 
                 return {
                     "success": False,
