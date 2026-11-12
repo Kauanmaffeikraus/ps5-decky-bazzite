@@ -3,148 +3,144 @@ import subprocess
 import urllib.request
 import json
 import logging
-import tarfile
 import shutil
 
 logging.basicConfig(level=logging.INFO)
 
-def get_settings_dir():
-    # Decky Loader define DECKY_PLUGIN_SETTINGS_DIR quando executa plugins
-    decky_dir = os.environ.get("DECKY_PLUGIN_SETTINGS_DIR")
-    if decky_dir:
-        return decky_dir
-    user_config = os.path.expanduser("~/.config/ps5-bazzite-updater")
+# Tenta obter o diretório oficial de settings do Decky Loader
+try:
+    import decky_plugin
+    DECKY_SETTINGS_DIR = getattr(decky_plugin, "DECKY_PLUGIN_SETTINGS_DIR", None)
+except Exception:
+    DECKY_SETTINGS_DIR = None
+
+def get_possible_settings_files():
+    files = []
+    if DECKY_SETTINGS_DIR:
+        files.append(os.path.join(DECKY_SETTINGS_DIR, "settings.json"))
+    files.append("/var/home/ps5/.config/ps5-bazzite-updater/settings.json")
+    files.append("/tmp/ps5-bazzite-updater-settings.json")
+    return files
+
+def read_saved_mode():
+    for f in get_possible_settings_files():
+        if os.path.exists(f):
+            try:
+                with open(f, "r", encoding="utf-8") as fp:
+                    data = json.load(fp)
+                    mode = data.get("mode")
+                    if mode in ["legacy", "bootc"]:
+                        return mode
+            except Exception:
+                pass
+    return "legacy"  # Default seguro para legacy
+
+def write_saved_mode(mode: str):
+    if mode not in ["legacy", "bootc"]:
+        mode = "legacy"
+    saved = False
+    for f in get_possible_settings_files():
+        try:
+            d = os.path.dirname(f)
+            os.makedirs(d, exist_ok=True)
+            with open(f, "w", encoding="utf-8") as fp:
+                json.dump({"mode": mode}, fp, indent=2)
+            saved = True
+        except Exception:
+            pass
+    return saved
+
+def get_installed_version():
+    candidates = [
+        "/etc/ps5-bazzite-version",
+        "/usr/share/ps5-bazzite/version"
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read().strip()
+            except Exception:
+                pass
+
+    if os.path.exists("/etc/os-release"):
+        try:
+            with open("/etc/os-release", "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("IMAGE_VERSION=") or line.startswith("VERSION_ID="):
+                        return line.split("=", 1)[1].strip().strip('"')
+        except Exception:
+            pass
+
+    return "Desconhecida"
+
+async def fetch_github_release():
+    url = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases/latest"
+    headers = {
+        "User-Agent": "Decky-PS5-Bazzite-Updater",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    req = urllib.request.Request(url, headers=headers)
     try:
-        os.makedirs(user_config, exist_ok=True)
-        return user_config
-    except Exception:
-        fallback = "/tmp/ps5-bazzite-updater"
-        os.makedirs(fallback, exist_ok=True)
-        return fallback
+        with urllib.request.urlopen(req, timeout=12) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                tag_name = data.get("tag_name", "")
+                name = data.get("name", "")
+                body = data.get("body", "")
+                html_url = data.get("html_url", "")
+                published_at = data.get("published_at", "")
+                assets = data.get("assets", [])
+
+                legacy_tar_url = None
+                for a in assets:
+                    if a.get("name", "").endswith("-update.tar.xz"):
+                        legacy_tar_url = a.get("browser_download_url")
+                        break
+
+                return {
+                    "success": True,
+                    "latest_version": tag_name,
+                    "title": name,
+                    "notes": body[:400] if body else "",
+                    "url": html_url,
+                    "published_at": published_at,
+                    "legacy_tar_url": legacy_tar_url
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"HTTP {response.status}"
+                }
+    except Exception as e:
+        logging.error(f"Erro ao consultar GitHub API: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 class Plugin:
     async def _main(self):
         logging.info("PS5 Bazzite Updater plugin iniciado.")
-        try:
-            os.makedirs(get_settings_dir(), exist_ok=True)
-        except Exception:
-            pass
 
     async def _unload(self):
         logging.info("PS5 Bazzite Updater plugin descarregado.")
 
-    def _get_settings_file(self):
-        return os.path.join(get_settings_dir(), "settings.json")
+    async def get_saved_mode(self, *args, **kwargs) -> str:
+        return read_saved_mode()
 
-    async def get_saved_mode(self) -> str:
-        """
-        Retorna o modo configurado: 'legacy', 'bootc' ou 'unset' (se for primeira vez).
-        """
-        settings_file = self._get_settings_file()
-        if os.path.exists(settings_file):
-            try:
-                with open(settings_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    mode = data.get("mode")
-                    if mode in ["legacy", "bootc"]:
-                        return mode
-            except Exception as e:
-                logging.warning(f"Erro ao ler settings: {e}")
-        return "unset"
+    async def set_mode(self, mode: str = "legacy", *args, **kwargs) -> dict:
+        logging.info(f"Alterando modo para: {mode}")
+        success = write_saved_mode(mode)
+        return {"success": success, "mode": mode}
 
-    async def set_mode(self, mode: str) -> dict:
-        """
-        Salva a escolha do usuário ('legacy' ou 'bootc').
-        """
-        if mode not in ["legacy", "bootc"]:
-            return {"success": False, "message": "Modo inválido. Escolha 'legacy' ou 'bootc'."}
-        try:
-            s_dir = get_settings_dir()
-            os.makedirs(s_dir, exist_ok=True)
-            settings_file = self._get_settings_file()
-            with open(settings_file, "w", encoding="utf-8") as f:
-                json.dump({"mode": mode}, f, indent=2)
-            logging.info(f"Modo salvo com sucesso: {mode}")
-            return {"success": True, "mode": mode}
-        except Exception as e:
-            return {"success": False, "message": str(e)}
+    async def get_current_version(self, *args, **kwargs) -> str:
+        return get_installed_version()
 
-    async def get_current_version(self) -> str:
-        """
-        Retorna a versão do sistema instalada localmente.
-        """
-        candidates = [
-            "/etc/ps5-bazzite-version",
-            "/usr/share/ps5-bazzite/version"
-        ]
-        for path in candidates:
-            if os.path.exists(path):
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        return f.read().strip()
-                except Exception:
-                    pass
+    async def check_github_update(self, *args, **kwargs) -> dict:
+        return await fetch_github_release()
 
-        if os.path.exists("/etc/os-release"):
-            try:
-                with open("/etc/os-release", "r", encoding="utf-8") as f:
-                    for line in f:
-                        if line.startswith("IMAGE_VERSION=") or line.startswith("VERSION_ID="):
-                            return line.split("=", 1)[1].strip().strip('"')
-            except Exception:
-                pass
-
-        return "Desconhecida"
-
-    async def check_github_update(self) -> dict:
-        """
-        Consulta a API do GitHub em busca da última release oficial de VivaLaVent/ps5-bazzite-deck.
-        """
-        url = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases/latest"
-        headers = {
-            "User-Agent": "Decky-PS5-Bazzite-Updater",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        req = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=10) as response:
-                if response.status == 200:
-                    data = json.loads(response.read().decode("utf-8"))
-                    tag_name = data.get("tag_name", "")
-                    name = data.get("name", "")
-                    body = data.get("body", "")
-                    html_url = data.get("html_url", "")
-                    published_at = data.get("published_at", "")
-                    assets = data.get("assets", [])
-
-                    legacy_tar_url = None
-                    for a in assets:
-                        if a.get("name", "").endswith("-update.tar.xz"):
-                            legacy_tar_url = a.get("browser_download_url")
-                            break
-
-                    return {
-                        "success": True,
-                        "latest_version": tag_name,
-                        "title": name,
-                        "notes": body[:400] if body else "",
-                        "url": html_url,
-                        "published_at": published_at,
-                        "legacy_tar_url": legacy_tar_url
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error": f"HTTP {response.status}"
-                    }
-        except Exception as e:
-            logging.error(f"Erro ao consultar GitHub API: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    async def trigger_update(self, method: str) -> dict:
+    async def trigger_update(self, method: str = "legacy", *args, **kwargs) -> dict:
         """
         Aplica a atualização no console de acordo com a escolha: 'bootc' ou 'legacy'.
         """
@@ -160,7 +156,7 @@ class Plugin:
                 if res.returncode == 0:
                     return {
                         "success": True,
-                        "message": "Atualização bootc concluída com sucesso! Reinicie o console para carregar a nova versão."
+                        "message": "Atualização bootc concluída com sucesso! Reinicie o console para aplicar."
                     }
                 else:
                     return {
@@ -170,8 +166,8 @@ class Plugin:
 
             elif method == "legacy":
                 logging.info("Iniciando atualização via método Legacy...")
-                # 1. Tenta baixar o pacote oficial de atualização legado da release
-                check = await self.check_github_update()
+                # 1. Busca os dados da release para obter o tarball oficial de update
+                check = await fetch_github_release()
                 legacy_tar_url = check.get("legacy_tar_url") if check.get("success") else None
 
                 work_dir = "/tmp/ps5-legacy-update"
@@ -203,7 +199,7 @@ class Plugin:
                             "message": run_res.stdout if run_res.returncode == 0 else run_res.stderr
                         }
 
-                # 2. Fallback caso não ache o tarball ou já existam scripts locais
+                # 2. Fallback caso scripts locais já existam
                 possible_scripts = [
                     "/usr/bin/ps5-bazzite-update",
                     "/usr/local/bin/update-ps5-bazzite.sh",
@@ -224,7 +220,7 @@ class Plugin:
 
                 return {
                     "success": False,
-                    "message": "Nenhum script legado de atualização encontrado na release ou localmente. Verifique sua conexão ou execute o script manualmente."
+                    "message": "Nenhum pacote de atualização legado (update.tar.xz) ou script local foi encontrado."
                 }
 
             return {
@@ -234,7 +230,7 @@ class Plugin:
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
-                "message": "A atualização demorou muito tempo e atingiu o tempo limite."
+                "message": "A atualização atingiu o tempo limite (timeout)."
             }
         except Exception as e:
             logging.error(f"Erro ao executar atualização: {e}")

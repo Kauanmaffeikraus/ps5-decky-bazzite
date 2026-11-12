@@ -3,12 +3,11 @@ import {
   PanelSection,
   PanelSectionRow,
   ButtonItem,
-  DropdownItem,
   ServerAPI,
   staticClasses,
 } from "decky-frontend-lib";
 import React, { useState, useEffect, VFC, ReactNode } from "react";
-import { FaPlaystation, FaSync, FaExclamationTriangle, FaDownload, FaCog, FaCheckCircle } from "react-icons/fa";
+import { FaPlaystation, FaSync, FaExclamationTriangle, FaDownload, FaCheckCircle, FaCheck } from "react-icons/fa";
 
 interface UpdateInfo {
   success: boolean;
@@ -41,7 +40,7 @@ const CustomButtonItem: VFC<{
 };
 
 const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-  const [mode, setMode] = useState<string>("loading"); // 'legacy', 'bootc', 'unset', 'loading'
+  const [mode, setMode] = useState<string>("legacy"); // 'legacy' ou 'bootc'
   const [currentVersion, setCurrentVersion] = useState<string>("");
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isChecking, setIsChecking] = useState<boolean>(false);
@@ -51,7 +50,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   const loadModeAndStatus = async () => {
     try {
       const modeRes = await serverAPI.callPluginMethod<{}, string>("get_saved_mode", {});
-      if (modeRes.success && typeof modeRes.result === "string") {
+      if (modeRes.success && typeof modeRes.result === "string" && (modeRes.result === "bootc" || modeRes.result === "legacy")) {
         setMode(modeRes.result);
       } else {
         setMode("legacy");
@@ -70,6 +69,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
   const checkUpdates = async () => {
     setIsChecking(true);
+    setStatusMessage("");
     try {
       const checkRes = await serverAPI.callPluginMethod<{}, UpdateInfo>("check_github_update", {});
       if (checkRes.success && typeof checkRes.result === "object" && checkRes.result) {
@@ -93,17 +93,17 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   }, []);
 
   const handleSelectMode = async (selected: string) => {
-    setMode(selected);
-    setStatusMessage(`Modo alterado para: ${selected.toUpperCase()}`);
-    await serverAPI.callPluginMethod<{ mode: string }, { success: boolean }>("set_mode", { mode: selected });
+    const cleanMode = selected === "bootc" ? "bootc" : "legacy";
+    setMode(cleanMode);
+    setStatusMessage(`Modo ativado: ${cleanMode.toUpperCase()}`);
+    try {
+      await serverAPI.callPluginMethod<{ mode: string }, { success: boolean }>("set_mode", { mode: cleanMode });
+    } catch (e) {
+      console.error("Erro ao salvar modo:", e);
+    }
   };
 
   const handleUpdate = async () => {
-    if (mode === "unset") {
-      setStatusMessage("Selecione primeiro se o seu sistema é Legacy ou Bootc!");
-      return;
-    }
-
     setIsUpdating(true);
     setStatusMessage(`Iniciando atualização via modo ${mode.toUpperCase()}... Isso pode levar alguns minutos.`);
     try {
@@ -124,57 +124,48 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     }
   };
 
-  // Se o usuário ainda não escolheu o modo na primeira vez
-  if (mode === "unset") {
-    return (
-      <PanelSection title="Configuração Inicial">
-        <PanelSectionRow>
-          <div style={{ fontSize: "13px", lineHeight: "1.4" }}>
-            Bem-vindo ao <strong>PS5 Bazzite Updater</strong>! Como seu sistema foi instalado?
-          </div>
-        </PanelSectionRow>
-
-        <PanelSectionRow>
-          <CustomButtonItem onClick={() => handleSelectMode("legacy")}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }}>
-              <span style={{ fontWeight: "bold", color: "#e67e22" }}>Método Legacy (Recomendado para você)</span>
-              <span style={{ fontSize: "11px", opacity: 0.8 }}>
-                Versão clássica/antiga. Atualiza baixando o bundle oficial e rodando o script interno.
-              </span>
-            </div>
-          </CustomButtonItem>
-        </PanelSectionRow>
-
-        <PanelSectionRow>
-          <CustomButtonItem onClick={() => handleSelectMode("bootc")}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }}>
-              <span style={{ fontWeight: "bold", color: "#2ecc71" }}>Método Bootc</span>
-              <span style={{ fontSize: "11px", opacity: 0.8 }}>
-                Para sistemas v2.5+ baseados em containers e gerenciados via <code>bootc upgrade</code>.
-              </span>
-            </div>
-          </CustomButtonItem>
-        </PanelSectionRow>
-      </PanelSection>
-    );
-  }
-
-  const dropdownOptions = [
-    { data: "legacy", label: "Método Legacy (Scripts / Tarball)" },
-    { data: "bootc", label: "Método Bootc (sudo bootc upgrade)" },
-  ];
-
   return (
     <PanelSection title="PS5 Bazzite Updater">
-      {/* Seletor para alternar o modo a qualquer momento */}
+      {/* Botões diretos para alternar entre Legacy e Bootc */}
       <PanelSectionRow>
-        <DropdownItem
-          label="Modo de Atualização"
-          description="Você pode alternar entre Legacy e Bootc quando quiser"
-          rgOptions={dropdownOptions}
-          selectedOption={mode}
-          onChange={(opt) => handleSelectMode(opt.data)}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <span style={{ fontSize: "12px", opacity: 0.8 }}>Selecione o seu Modo de Atualização:</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <CustomButtonItem
+              layout="below"
+              onClick={() => handleSelectMode("legacy")}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                fontWeight: mode === "legacy" ? "bold" : "normal",
+                color: mode === "legacy" ? "#e67e22" : "inherit"
+              }}>
+                {mode === "legacy" && <FaCheck />}
+                <span>LEGACY</span>
+              </div>
+            </CustomButtonItem>
+
+            <CustomButtonItem
+              layout="below"
+              onClick={() => handleSelectMode("bootc")}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                fontWeight: mode === "bootc" ? "bold" : "normal",
+                color: mode === "bootc" ? "#2ecc71" : "inherit"
+              }}>
+                {mode === "bootc" && <FaCheck />}
+                <span>BOOTC</span>
+              </div>
+            </CustomButtonItem>
+          </div>
+        </div>
       </PanelSectionRow>
 
       <PanelSectionRow>
@@ -213,7 +204,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           >
             <FaExclamationTriangle style={{ color: "#e67e22", marginTop: "2px", flexShrink: 0 }} />
             <div>
-              <strong>Modo Legacy selecionado:</strong> As atualizações serão feitas baixando o pacote oficial de atualização da release (<code>update.tar.xz</code>) e executando o <code>update.sh</code>.
+              <strong>Modo Legacy ativo:</strong> A atualização baixará o pacote oficial da release (<code>update.tar.xz</code>) e executará o script <code>update.sh</code>.
             </div>
           </div>
         </PanelSectionRow>
@@ -233,7 +224,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           >
             <FaCheckCircle style={{ color: "#2ecc71", marginTop: "2px", flexShrink: 0 }} />
             <div>
-              <strong>Modo Bootc selecionado:</strong> Atualizações atômicas containerizadas via <code>bootc upgrade</code>.
+              <strong>Modo Bootc ativo:</strong> Atualizações atômicas containerizadas via <code>bootc upgrade</code>.
             </div>
           </div>
         </PanelSectionRow>
