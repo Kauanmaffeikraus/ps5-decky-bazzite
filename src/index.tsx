@@ -61,21 +61,28 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         setCurrentVersion(verRes.result);
       }
 
-      await checkUpdates();
+      await checkUpdates(verRes.result);
     } catch (e: any) {
       setMode("legacy");
     }
   };
 
-  const checkUpdates = async () => {
+  const checkUpdates = async (installedVer?: string) => {
     setIsChecking(true);
     setStatusMessage("");
     try {
       const checkRes = await serverAPI.callPluginMethod<{}, UpdateInfo>("check_github_update", {});
       if (checkRes.success && typeof checkRes.result === "object" && checkRes.result) {
         setUpdateInfo(checkRes.result);
-        if (checkRes.result.latest_version) {
-          setStatusMessage(`Última versão disponível no GitHub: ${checkRes.result.latest_version}`);
+        const latest = checkRes.result.latest_version;
+        const current = installedVer || currentVersion;
+
+        if (latest) {
+          if (current && current.toLowerCase() === latest.toLowerCase()) {
+            setStatusMessage(`Seu sistema já está na versão mais recente (${latest})!`);
+          } else {
+            setStatusMessage(`Nova versão disponível no GitHub: ${latest}`);
+          }
         }
       } else {
         const err = checkRes.result && typeof checkRes.result === "object" ? checkRes.result.error : undefined;
@@ -123,6 +130,12 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
       setIsUpdating(false);
     }
   };
+
+  const isUpToDate = Boolean(
+    currentVersion &&
+    updateInfo?.latest_version &&
+    currentVersion.toLowerCase() === updateInfo.latest_version.toLowerCase()
+  );
 
   return (
     <PanelSection title="PS5 Bazzite Updater">
@@ -177,12 +190,13 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
             </span>
           </div>
           <div>
-            <strong>Versão Instalada:</strong> {currentVersion || "Identificando..."}
+            <strong>Versão Instalada:</strong>{" "}
+            <span style={{ color: "#2ecc71", fontWeight: "bold" }}>{currentVersion || "Identificando..."}</span>
           </div>
           {updateInfo?.latest_version && (
             <div>
               <strong>Última Versão Online:</strong>{" "}
-              <span style={{ color: "#3498db" }}>{updateInfo.latest_version}</span>
+              <span style={{ color: "#3498db", fontWeight: "bold" }}>{updateInfo.latest_version}</span>
             </div>
           )}
         </div>
@@ -204,7 +218,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           >
             <FaExclamationTriangle style={{ color: "#e67e22", marginTop: "2px", flexShrink: 0 }} />
             <div>
-              <strong>Modo Legacy ativo:</strong> A atualização baixará o pacote oficial da release (<code>update.tar.xz</code>) e executará o script <code>update.sh</code>.
+              <strong>Modo Legacy ativo:</strong> Baixará o pacote oficial da release (<code>update.tar.xz</code>) e executará o <code>update.sh</code>.
             </div>
           </div>
         </PanelSectionRow>
@@ -236,8 +250,8 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
             style={{
               padding: "8px",
               borderRadius: "4px",
-              backgroundColor: "rgba(52, 152, 219, 0.15)",
-              border: "1px solid #3498db",
+              backgroundColor: isUpToDate ? "rgba(46, 204, 113, 0.15)" : "rgba(52, 152, 219, 0.15)",
+              border: isUpToDate ? "1px solid #2ecc71" : "1px solid #3498db",
               fontSize: "12px",
               whiteSpace: "pre-wrap",
             }}
@@ -251,7 +265,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         <CustomButtonItem
           layout="below"
           disabled={isChecking || isUpdating}
-          onClick={checkUpdates}
+          onClick={() => checkUpdates()}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
             <FaSync />
@@ -268,7 +282,13 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
             <FaDownload />
-            <span>{isUpdating ? "Atualizando..." : `Atualizar Agora (${mode.toUpperCase()})`}</span>
+            <span>
+              {isUpdating
+                ? "Atualizando..."
+                : isUpToDate
+                ? `Reinstalar / Atualizar (${mode.toUpperCase()})`
+                : `Atualizar Agora (${mode.toUpperCase()})`}
+            </span>
           </div>
         </CustomButtonItem>
       </PanelSectionRow>

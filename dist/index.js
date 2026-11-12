@@ -95,21 +95,28 @@
               if (verRes.success && typeof verRes.result === "string") {
                   setCurrentVersion(verRes.result);
               }
-              await checkUpdates();
+              await checkUpdates(verRes.result);
           }
           catch (e) {
               setMode("legacy");
           }
       };
-      const checkUpdates = async () => {
+      const checkUpdates = async (installedVer) => {
           setIsChecking(true);
           setStatusMessage("");
           try {
               const checkRes = await serverAPI.callPluginMethod("check_github_update", {});
               if (checkRes.success && typeof checkRes.result === "object" && checkRes.result) {
                   setUpdateInfo(checkRes.result);
-                  if (checkRes.result.latest_version) {
-                      setStatusMessage(`Última versão disponível no GitHub: ${checkRes.result.latest_version}`);
+                  const latest = checkRes.result.latest_version;
+                  const current = installedVer || currentVersion;
+                  if (latest) {
+                      if (current && current.toLowerCase() === latest.toLowerCase()) {
+                          setStatusMessage(`Seu sistema já está na versão mais recente (${latest})!`);
+                      }
+                      else {
+                          setStatusMessage(`Nova versão disponível no GitHub: ${latest}`);
+                      }
                   }
               }
               else {
@@ -158,6 +165,9 @@
               setIsUpdating(false);
           }
       };
+      const isUpToDate = Boolean(currentVersion &&
+          updateInfo?.latest_version &&
+          currentVersion.toLowerCase() === updateInfo.latest_version.toLowerCase());
       return (React.createElement(deckyFrontendLib.PanelSection, { title: "PS5 Bazzite Updater" },
           React.createElement(deckyFrontendLib.PanelSectionRow, null,
               React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px" } },
@@ -194,11 +204,11 @@
                   React.createElement("div", null,
                       React.createElement("strong", null, "Vers\u00E3o Instalada:"),
                       " ",
-                      currentVersion || "Identificando..."),
+                      React.createElement("span", { style: { color: "#2ecc71", fontWeight: "bold" } }, currentVersion || "Identificando...")),
                   updateInfo?.latest_version && (React.createElement("div", null,
                       React.createElement("strong", null, "\u00DAltima Vers\u00E3o Online:"),
                       " ",
-                      React.createElement("span", { style: { color: "#3498db" } }, updateInfo.latest_version))))),
+                      React.createElement("span", { style: { color: "#3498db", fontWeight: "bold" } }, updateInfo.latest_version))))),
           mode === "legacy" ? (React.createElement(deckyFrontendLib.PanelSectionRow, null,
               React.createElement("div", { style: {
                       backgroundColor: "rgba(230, 126, 34, 0.15)",
@@ -213,9 +223,9 @@
                   React.createElement(FaExclamationTriangle, { style: { color: "#e67e22", marginTop: "2px", flexShrink: 0 } }),
                   React.createElement("div", null,
                       React.createElement("strong", null, "Modo Legacy ativo:"),
-                      " A atualiza\u00E7\u00E3o baixar\u00E1 o pacote oficial da release (",
+                      " Baixar\u00E1 o pacote oficial da release (",
                       React.createElement("code", null, "update.tar.xz"),
-                      ") e executar\u00E1 o script ",
+                      ") e executar\u00E1 o ",
                       React.createElement("code", null, "update.sh"),
                       ".")))) : (React.createElement(deckyFrontendLib.PanelSectionRow, null,
               React.createElement("div", { style: {
@@ -238,13 +248,13 @@
               React.createElement("div", { style: {
                       padding: "8px",
                       borderRadius: "4px",
-                      backgroundColor: "rgba(52, 152, 219, 0.15)",
-                      border: "1px solid #3498db",
+                      backgroundColor: isUpToDate ? "rgba(46, 204, 113, 0.15)" : "rgba(52, 152, 219, 0.15)",
+                      border: isUpToDate ? "1px solid #2ecc71" : "1px solid #3498db",
                       fontSize: "12px",
                       whiteSpace: "pre-wrap",
                   } }, statusMessage))),
           React.createElement(deckyFrontendLib.PanelSectionRow, null,
-              React.createElement(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: checkUpdates },
+              React.createElement(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: () => checkUpdates() },
                   React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } },
                       React.createElement(FaSync, null),
                       React.createElement("span", null, isChecking ? "Verificando..." : "Checar Atualizações")))),
@@ -252,7 +262,11 @@
               React.createElement(CustomButtonItem, { layout: "below", disabled: isUpdating || isChecking, onClick: handleUpdate },
                   React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } },
                       React.createElement(FaDownload, null),
-                      React.createElement("span", null, isUpdating ? "Atualizando..." : `Atualizar Agora (${mode.toUpperCase()})`))))));
+                      React.createElement("span", null, isUpdating
+                          ? "Atualizando..."
+                          : isUpToDate
+                              ? `Reinstalar / Atualizar (${mode.toUpperCase()})`
+                              : `Atualizar Agora (${mode.toUpperCase()})`))))));
   };
   var index = deckyFrontendLib.definePlugin((serverAPI) => {
       return {

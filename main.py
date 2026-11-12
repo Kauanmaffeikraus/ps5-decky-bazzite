@@ -33,7 +33,7 @@ def read_saved_mode():
                         return mode
             except Exception:
                 pass
-    return "legacy"  # Default seguro para legacy
+    return "legacy"
 
 def write_saved_mode(mode: str):
     if mode not in ["legacy", "bootc"]:
@@ -51,11 +51,35 @@ def write_saved_mode(mode: str):
     return saved
 
 def get_installed_version():
-    candidates = [
-        "/etc/ps5-bazzite-version",
-        "/usr/share/ps5-bazzite/version"
-    ]
-    for path in candidates:
+    """
+    Obtém a versão oficial instalada do PS5 Bazzite Deck.
+    """
+    # 1. Arquivo de versão da instalação legacy
+    legacy_file = "/etc/ps5-bazzite-deck-version"
+    if os.path.exists(legacy_file):
+        try:
+            with open(legacy_file, "r", encoding="utf-8") as f:
+                val = f.read().strip()
+                if val:
+                    return val
+        except Exception:
+            pass
+
+    # 2. Arquivo de versão da instalação bootc
+    bootc_file = "/usr/share/ps5-bazzite-bootc/VERSION"
+    if os.path.exists(bootc_file):
+        try:
+            with open(bootc_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("deck="):
+                        return line.split("=", 1)[1].strip()
+                    if line.startswith("version="):
+                        return line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+
+    # 3. Fallbacks
+    for path in ["/etc/ps5-bazzite-version", "/usr/share/ps5-bazzite/version"]:
         if os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
@@ -63,61 +87,67 @@ def get_installed_version():
             except Exception:
                 pass
 
-    if os.path.exists("/etc/os-release"):
-        try:
-            with open("/etc/os-release", "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.startswith("IMAGE_VERSION=") or line.startswith("VERSION_ID="):
-                        return line.split("=", 1)[1].strip().strip('"')
-        except Exception:
-            pass
-
     return "Desconhecida"
 
 async def fetch_github_release():
     url = "https://api.github.com/repos/VivaLaVent/ps5-bazzite-deck/releases/latest"
-    headers = {
-        "User-Agent": "Decky-PS5-Bazzite-Updater",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    req = urllib.request.Request(url, headers=headers)
+    raw_data = None
+
+    # Tentativa 1: urllib
     try:
-        with urllib.request.urlopen(req, timeout=12) as response:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Decky-PS5-Bazzite-Updater",
+            "Accept": "application/vnd.github.v3+json"
+        })
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.status == 200:
-                data = json.loads(response.read().decode("utf-8"))
-                tag_name = data.get("tag_name", "")
-                name = data.get("name", "")
-                body = data.get("body", "")
-                html_url = data.get("html_url", "")
-                published_at = data.get("published_at", "")
-                assets = data.get("assets", [])
-
-                legacy_tar_url = None
-                for a in assets:
-                    if a.get("name", "").endswith("-update.tar.xz"):
-                        legacy_tar_url = a.get("browser_download_url")
-                        break
-
-                return {
-                    "success": True,
-                    "latest_version": tag_name,
-                    "title": name,
-                    "notes": body[:400] if body else "",
-                    "url": html_url,
-                    "published_at": published_at,
-                    "legacy_tar_url": legacy_tar_url
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status}"
-                }
+                raw_data = json.loads(response.read().decode("utf-8"))
     except Exception as e:
-        logging.error(f"Erro ao consultar GitHub API: {e}")
+        logging.warning(f"urllib falhou, tentando curl: {e}")
+
+    # Tentativa 2: curl caso urllib falhe por SSL ou ambiente de container
+    if not raw_data:
+        try:
+            curl_res = subprocess.run(
+                ["curl", "-sL", "-H", "User-Agent: Decky-PS5-Bazzite-Updater", url],
+                capture_output=True,
+                text=True,
+                timeout=12
+            )
+            if curl_res.returncode == 0 and curl_res.stdout:
+                raw_data = json.loads(curl_res.stdout)
+        except Exception as e:
+            logging.error(f"curl também falhou: {e}")
+
+    if not raw_data or "tag_name" not in raw_data:
         return {
             "success": False,
-            "error": str(e)
+            "error": "Não foi possível obter a versão mais recente do GitHub (verifique a internet)."
         }
+
+    tag_name = raw_data.get("tag_name", "")
+    name = raw_data.get("name", "")
+    body = raw_data.get("body", "")
+    html_url = raw_data.get("html_url", "")
+    published_at = raw_data.get("published_at", "")
+    assets = raw_data.get("assets", [])
+
+    legacy_tar_url = None
+    for a in assets:
+        a_name = a.get("name", "")
+        if a_name.endswith("-update.tar.xz") or "update.tar.xz" in a_name:
+            legacy_tar_url = a.get("browser_download_url")
+            break
+
+    return {
+        "success": True,
+        "latest_version": tag_name,
+        "title": name,
+        "notes": body[:400] if body else "",
+        "url": html_url,
+        "published_at": published_at,
+        "legacy_tar_url": legacy_tar_url
+    }
 
 class Plugin:
     async def _main(self):
@@ -145,6 +175,8 @@ class Plugin:
         Aplica a atualização no console de acordo com a escolha: 'bootc' ou 'legacy'.
         """
         try:
+            installed = get_installed_version()
+
             if method == "bootc":
                 logging.info("Iniciando atualização via bootc...")
                 res = subprocess.run(
@@ -165,62 +197,69 @@ class Plugin:
                     }
 
             elif method == "legacy":
-                logging.info("Iniciando atualização via método Legacy...")
-                # 1. Busca os dados da release para obter o tarball oficial de update
+                logging.info("Iniciando verificação de pacote Legacy...")
                 check = await fetch_github_release()
-                legacy_tar_url = check.get("legacy_tar_url") if check.get("success") else None
+                if not check.get("success"):
+                    return {
+                        "success": False,
+                        "message": f"Erro ao consultar release: {check.get('error')}"
+                    }
+
+                latest = check.get("latest_version")
+                legacy_tar_url = check.get("legacy_tar_url")
+
+                if not legacy_tar_url:
+                    return {
+                        "success": False,
+                        "message": f"A release {latest} não possui pacote 'update.tar.xz' anexado."
+                    }
 
                 work_dir = "/tmp/ps5-legacy-update"
                 if os.path.exists(work_dir):
                     shutil.rmtree(work_dir, ignore_errors=True)
                 os.makedirs(work_dir, exist_ok=True)
 
-                if legacy_tar_url:
-                    tar_path = os.path.join(work_dir, "update.tar.xz")
-                    logging.info(f"Baixando pacote legado de: {legacy_tar_url}...")
-                    urllib.request.urlretrieve(legacy_tar_url, tar_path)
+                tar_path = os.path.join(work_dir, "update.tar.xz")
+                logging.info(f"Baixando {legacy_tar_url} com curl...")
+                dl_res = subprocess.run(
+                    ["curl", "-L", "-o", tar_path, legacy_tar_url],
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                if dl_res.returncode != 0:
+                    return {
+                        "success": False,
+                        "message": f"Falha ao baixar o pacote de atualização: {dl_res.stderr}"
+                    }
 
-                    logging.info("Extraindo pacote de atualização...")
-                    subprocess.run(["tar", "-xf", tar_path, "-C", work_dir], check=True)
+                logging.info("Extraindo pacote de atualização...")
+                tar_res = subprocess.run(["tar", "-xf", tar_path, "-C", work_dir], capture_output=True, text=True)
+                if tar_res.returncode != 0:
+                    return {
+                        "success": False,
+                        "message": f"Falha ao descompactar pacote: {tar_res.stderr}"
+                    }
 
-                    update_script = os.path.join(work_dir, "update.sh")
-                    if os.path.exists(update_script):
-                        os.chmod(update_script, 0o755)
-                        logging.info("Executando update.sh...")
-                        run_res = subprocess.run(
-                            ["bash", update_script],
-                            cwd=work_dir,
-                            capture_output=True,
-                            text=True,
-                            timeout=600
-                        )
-                        return {
-                            "success": run_res.returncode == 0,
-                            "message": run_res.stdout if run_res.returncode == 0 else run_res.stderr
-                        }
-
-                # 2. Fallback caso scripts locais já existam
-                possible_scripts = [
-                    "/usr/bin/ps5-bazzite-update",
-                    "/usr/local/bin/update-ps5-bazzite.sh",
-                    "/etc/ps5-bazzite/update.sh"
-                ]
-                for script in possible_scripts:
-                    if os.path.exists(script):
-                        res = subprocess.run(
-                            [script],
-                            capture_output=True,
-                            text=True,
-                            timeout=600
-                        )
-                        return {
-                            "success": res.returncode == 0,
-                            "message": res.stdout if res.returncode == 0 else res.stderr
-                        }
+                update_script = os.path.join(work_dir, "update.sh")
+                if os.path.exists(update_script):
+                    os.chmod(update_script, 0o755)
+                    logging.info("Executando update.sh...")
+                    run_res = subprocess.run(
+                        ["bash", update_script],
+                        cwd=work_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=600
+                    )
+                    return {
+                        "success": run_res.returncode == 0,
+                        "message": run_res.stdout if run_res.returncode == 0 else run_res.stderr
+                    }
 
                 return {
                     "success": False,
-                    "message": "Nenhum pacote de atualização legado (update.tar.xz) ou script local foi encontrado."
+                    "message": "O arquivo update.sh não foi encontrado dentro do pacote extraído."
                 }
 
             return {
@@ -230,7 +269,7 @@ class Plugin:
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
-                "message": "A atualização atingiu o tempo limite (timeout)."
+                "message": "A operação atingiu o tempo limite (timeout)."
             }
         except Exception as e:
             logging.error(f"Erro ao executar atualização: {e}")
