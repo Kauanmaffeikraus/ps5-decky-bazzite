@@ -7,7 +7,7 @@ import {
   ServerAPI,
   staticClasses,
 } from "decky-frontend-lib";
-import { useState, useEffect, VFC, ReactNode } from "react";
+import React, { useState, useEffect, VFC, ReactNode } from "react";
 import { FaPlaystation, FaSync, FaExclamationTriangle, FaDownload, FaCog, FaCheckCircle } from "react-icons/fa";
 
 interface UpdateInfo {

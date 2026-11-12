@@ -1,35 +1,5 @@
-(function (React, deckyFrontendLib) {
+(function (deckyFrontendLib, React) {
   'use strict';
-
-  var jsxRuntime = {exports: {}};
-
-  var reactJsxRuntime_production_min = {};
-
-  /**
-   * @license React
-   * react-jsx-runtime.production.min.js
-   *
-   * Copyright (c) Facebook, Inc. and its affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   */
-
-  var hasRequiredReactJsxRuntime_production_min;
-
-  function requireReactJsxRuntime_production_min () {
-  	if (hasRequiredReactJsxRuntime_production_min) return reactJsxRuntime_production_min;
-  	hasRequiredReactJsxRuntime_production_min = 1;
-  var f=React,k=Symbol.for("react.element"),l=Symbol.for("react.fragment"),m=Object.prototype.hasOwnProperty,n=f.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,p={key:true,ref:true,__self:true,__source:true};
-  	function q(c,a,g){var b,d={},e=null,h=null;void 0!==g&&(e=""+g);void 0!==a.key&&(e=""+a.key);void 0!==a.ref&&(h=a.ref);for(b in a)m.call(a,b)&&!p.hasOwnProperty(b)&&(d[b]=a[b]);if(c&&c.defaultProps)for(b in a=c.defaultProps,a) void 0===d[b]&&(d[b]=a[b]);return {$$typeof:k,type:c,key:e,ref:h,props:d,_owner:n.current}}reactJsxRuntime_production_min.Fragment=l;reactJsxRuntime_production_min.jsx=q;reactJsxRuntime_production_min.jsxs=q;
-  	return reactJsxRuntime_production_min;
-  }
-
-  {
-    jsxRuntime.exports = requireReactJsxRuntime_production_min();
-  }
-
-  var jsxRuntimeExports = jsxRuntime.exports;
 
   var DefaultContext = {
     color: undefined,
@@ -101,7 +71,7 @@
 
   const CustomButtonItem = ({ layout = "below", disabled, onClick, children }) => {
       const Component = deckyFrontendLib.ButtonItem;
-      return (jsxRuntimeExports.jsx(Component, { layout: layout, disabled: disabled, onClick: onClick, children: children }));
+      return (React.createElement(Component, { layout: layout, disabled: disabled, onClick: onClick }, children));
   };
   const Content = ({ serverAPI }) => {
       const [mode, setMode] = React.useState("loading"); // 'legacy', 'bootc', 'unset', 'loading'
@@ -185,47 +155,110 @@
       };
       // Se o usuário ainda não escolheu o modo na primeira vez
       if (mode === "unset") {
-          return (jsxRuntimeExports.jsxs(deckyFrontendLib.PanelSection, { title: "Configura\u00E7\u00E3o Inicial", children: [jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: { fontSize: "13px", lineHeight: "1.4" }, children: ["Bem-vindo ao ", jsxRuntimeExports.jsx("strong", { children: "PS5 Bazzite Updater" }), "! Como seu sistema foi instalado?"] }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { onClick: () => handleSelectMode("legacy"), children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }, children: [jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", color: "#e67e22" }, children: "M\u00E9todo Legacy (Recomendado para voc\u00EA)" }), jsxRuntimeExports.jsx("span", { style: { fontSize: "11px", opacity: 0.8 }, children: "Vers\u00E3o cl\u00E1ssica/antiga. Atualiza baixando o bundle oficial e rodando o script interno." })] }) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { onClick: () => handleSelectMode("bootc"), children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }, children: [jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", color: "#2ecc71" }, children: "M\u00E9todo Bootc" }), jsxRuntimeExports.jsxs("span", { style: { fontSize: "11px", opacity: 0.8 }, children: ["Para sistemas v2.5+ baseados em containers e gerenciados via ", jsxRuntimeExports.jsx("code", { children: "bootc upgrade" }), "."] })] }) }) })] }));
+          return (React.createElement(deckyFrontendLib.PanelSection, { title: "Configura\u00E7\u00E3o Inicial" },
+              React.createElement(deckyFrontendLib.PanelSectionRow, null,
+                  React.createElement("div", { style: { fontSize: "13px", lineHeight: "1.4" } },
+                      "Bem-vindo ao ",
+                      React.createElement("strong", null, "PS5 Bazzite Updater"),
+                      "! Como seu sistema foi instalado?")),
+              React.createElement(deckyFrontendLib.PanelSectionRow, null,
+                  React.createElement(CustomButtonItem, { onClick: () => handleSelectMode("legacy") },
+                      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" } },
+                          React.createElement("span", { style: { fontWeight: "bold", color: "#e67e22" } }, "M\u00E9todo Legacy (Recomendado para voc\u00EA)"),
+                          React.createElement("span", { style: { fontSize: "11px", opacity: 0.8 } }, "Vers\u00E3o cl\u00E1ssica/antiga. Atualiza baixando o bundle oficial e rodando o script interno.")))),
+              React.createElement(deckyFrontendLib.PanelSectionRow, null,
+                  React.createElement(CustomButtonItem, { onClick: () => handleSelectMode("bootc") },
+                      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" } },
+                          React.createElement("span", { style: { fontWeight: "bold", color: "#2ecc71" } }, "M\u00E9todo Bootc"),
+                          React.createElement("span", { style: { fontSize: "11px", opacity: 0.8 } },
+                              "Para sistemas v2.5+ baseados em containers e gerenciados via ",
+                              React.createElement("code", null, "bootc upgrade"),
+                              "."))))));
       }
       const dropdownOptions = [
           { data: "legacy", label: "Método Legacy (Scripts / Tarball)" },
           { data: "bootc", label: "Método Bootc (sudo bootc upgrade)" },
       ];
-      return (jsxRuntimeExports.jsxs(deckyFrontendLib.PanelSection, { title: "PS5 Bazzite Updater", children: [jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(deckyFrontendLib.DropdownItem, { label: "Modo de Atualiza\u00E7\u00E3o", description: "Voc\u00EA pode alternar entre Legacy e Bootc quando quiser", rgOptions: dropdownOptions, selectedOption: mode, onChange: (opt) => handleSelectMode(opt.data) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }, children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Ativo:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: mode === "bootc" ? "#2ecc71" : "#e67e22", fontWeight: "bold" }, children: mode.toUpperCase() })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Vers\u00E3o Instalada:" }), " ", currentVersion || "Identificando..."] }), updateInfo?.latest_version && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "\u00DAltima Vers\u00E3o Online:" }), " ", jsxRuntimeExports.jsx("span", { style: { color: "#3498db" }, children: updateInfo.latest_version })] }))] }) }), mode === "legacy" ? (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: {
-                          backgroundColor: "rgba(230, 126, 34, 0.15)",
-                          border: "1px solid #e67e22",
-                          borderRadius: "4px",
-                          padding: "8px",
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: "8px",
-                          fontSize: "12px",
-                      }, children: [jsxRuntimeExports.jsx(FaExclamationTriangle, { style: { color: "#e67e22", marginTop: "2px", flexShrink: 0 } }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Legacy selecionado:" }), " As atualiza\u00E7\u00F5es ser\u00E3o feitas baixando o pacote oficial de atualiza\u00E7\u00E3o da release (", jsxRuntimeExports.jsx("code", { children: "update.tar.xz" }), ") e executando o ", jsxRuntimeExports.jsx("code", { children: "update.sh" }), "."] })] }) })) : (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsxs("div", { style: {
-                          backgroundColor: "rgba(46, 204, 113, 0.15)",
-                          border: "1px solid #2ecc71",
-                          borderRadius: "4px",
-                          padding: "8px",
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: "8px",
-                          fontSize: "12px",
-                      }, children: [jsxRuntimeExports.jsx(FaCheckCircle, { style: { color: "#2ecc71", marginTop: "2px", flexShrink: 0 } }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { children: "Modo Bootc selecionado:" }), " Atualiza\u00E7\u00F5es at\u00F4micas containerizadas via ", jsxRuntimeExports.jsx("code", { children: "bootc upgrade" }), "."] })] }) })), statusMessage && (jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx("div", { style: {
-                          padding: "8px",
-                          borderRadius: "4px",
-                          backgroundColor: "rgba(52, 152, 219, 0.15)",
-                          border: "1px solid #3498db",
-                          fontSize: "12px",
-                          whiteSpace: "pre-wrap",
-                      }, children: statusMessage }) })), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: checkUpdates, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaSync, {}), jsxRuntimeExports.jsx("span", { children: isChecking ? "Verificando..." : "Checar Atualizações" })] }) }) }), jsxRuntimeExports.jsx(deckyFrontendLib.PanelSectionRow, { children: jsxRuntimeExports.jsx(CustomButtonItem, { layout: "below", disabled: isUpdating || isChecking, onClick: handleUpdate, children: jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }, children: [jsxRuntimeExports.jsx(FaDownload, {}), jsxRuntimeExports.jsx("span", { children: isUpdating ? "Atualizando..." : `Atualizar Agora (${mode.toUpperCase()})` })] }) }) })] }));
+      return (React.createElement(deckyFrontendLib.PanelSection, { title: "PS5 Bazzite Updater" },
+          React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement(deckyFrontendLib.DropdownItem, { label: "Modo de Atualiza\u00E7\u00E3o", description: "Voc\u00EA pode alternar entre Legacy e Bootc quando quiser", rgOptions: dropdownOptions, selectedOption: mode, onChange: (opt) => handleSelectMode(opt.data) })),
+          React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" } },
+                  React.createElement("div", null,
+                      React.createElement("strong", null, "Modo Ativo:"),
+                      " ",
+                      React.createElement("span", { style: { color: mode === "bootc" ? "#2ecc71" : "#e67e22", fontWeight: "bold" } }, mode.toUpperCase())),
+                  React.createElement("div", null,
+                      React.createElement("strong", null, "Vers\u00E3o Instalada:"),
+                      " ",
+                      currentVersion || "Identificando..."),
+                  updateInfo?.latest_version && (React.createElement("div", null,
+                      React.createElement("strong", null, "\u00DAltima Vers\u00E3o Online:"),
+                      " ",
+                      React.createElement("span", { style: { color: "#3498db" } }, updateInfo.latest_version))))),
+          mode === "legacy" ? (React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement("div", { style: {
+                      backgroundColor: "rgba(230, 126, 34, 0.15)",
+                      border: "1px solid #e67e22",
+                      borderRadius: "4px",
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      fontSize: "12px",
+                  } },
+                  React.createElement(FaExclamationTriangle, { style: { color: "#e67e22", marginTop: "2px", flexShrink: 0 } }),
+                  React.createElement("div", null,
+                      React.createElement("strong", null, "Modo Legacy selecionado:"),
+                      " As atualiza\u00E7\u00F5es ser\u00E3o feitas baixando o pacote oficial de atualiza\u00E7\u00E3o da release (",
+                      React.createElement("code", null, "update.tar.xz"),
+                      ") e executando o ",
+                      React.createElement("code", null, "update.sh"),
+                      ".")))) : (React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement("div", { style: {
+                      backgroundColor: "rgba(46, 204, 113, 0.15)",
+                      border: "1px solid #2ecc71",
+                      borderRadius: "4px",
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      fontSize: "12px",
+                  } },
+                  React.createElement(FaCheckCircle, { style: { color: "#2ecc71", marginTop: "2px", flexShrink: 0 } }),
+                  React.createElement("div", null,
+                      React.createElement("strong", null, "Modo Bootc selecionado:"),
+                      " Atualiza\u00E7\u00F5es at\u00F4micas containerizadas via ",
+                      React.createElement("code", null, "bootc upgrade"),
+                      ".")))),
+          statusMessage && (React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement("div", { style: {
+                      padding: "8px",
+                      borderRadius: "4px",
+                      backgroundColor: "rgba(52, 152, 219, 0.15)",
+                      border: "1px solid #3498db",
+                      fontSize: "12px",
+                      whiteSpace: "pre-wrap",
+                  } }, statusMessage))),
+          React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement(CustomButtonItem, { layout: "below", disabled: isChecking || isUpdating, onClick: checkUpdates },
+                  React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } },
+                      React.createElement(FaSync, null),
+                      React.createElement("span", null, isChecking ? "Verificando..." : "Checar Atualizações")))),
+          React.createElement(deckyFrontendLib.PanelSectionRow, null,
+              React.createElement(CustomButtonItem, { layout: "below", disabled: isUpdating || isChecking, onClick: handleUpdate },
+                  React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } },
+                      React.createElement(FaDownload, null),
+                      React.createElement("span", null, isUpdating ? "Atualizando..." : `Atualizar Agora (${mode.toUpperCase()})`))))));
   };
   var index = deckyFrontendLib.definePlugin((serverAPI) => {
       return {
-          title: jsxRuntimeExports.jsx("div", { className: deckyFrontendLib.staticClasses.Title, children: "PS5 Updater" }),
-          content: jsxRuntimeExports.jsx(Content, { serverAPI: serverAPI }),
-          icon: jsxRuntimeExports.jsx(FaPlaystation, {}),
+          title: React.createElement("div", { className: deckyFrontendLib.staticClasses.Title }, "PS5 Updater"),
+          content: React.createElement(Content, { serverAPI: serverAPI }),
+          icon: React.createElement(FaPlaystation, null),
       };
   });
 
   return index;
 
-})(SP_REACT, DFL);
+})(DFL, SP_REACT);
