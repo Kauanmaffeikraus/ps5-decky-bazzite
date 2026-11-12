@@ -2,8 +2,8 @@ name: Auto Update Payloads JSON
 
 on:
   schedule:
-    # Executa automaticamente a cada 6 horas
-    - cron: '0 */6 * * *'
+    # Executa automaticamente a cada hora
+    - cron: '0 * * * *'
   workflow_dispatch: # Permite disparar manualmente pelo botão no GitHub Actions
 
 permissions:
