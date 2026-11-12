@@ -1,58 +1,69 @@
-# PS5 Bazzite Decky Plugin & Payload Manager Repo
+# PS5 Bazzite Decky Plugin & Payload Manager Auto-Updater
 
-Este projeto contém os arquivos necessários para:
-1. **Plugin do Decky Loader (`ps5-bazzite-updater`)**: Notifica sobre novas versões do [VivaLaVent/ps5-bazzite-deck](https://github.com/VivaLaVent/ps5-bazzite-deck) e permite atualizar via `bootc` ou método legado diretamente pelo Gaming Mode.
-2. **Repositório JSON (`payloads.json`)**: Configuração para o **PS5 Payload Manager** atualizar o payload `.elf` automaticamente no console.
+[English](#english) | [Português](#português)
 
 ---
 
-## 1. Como Compilar e Instalar o Plugin no Decky Loader
+<a name="english"></a>
+## English
 
-### Pré-requisitos
-No seu ambiente Linux (ou no próprio Bazzite Desktop Mode), você precisará do `node` e `pnpm` (ou `npm`).
+An all-in-one Decky Loader plugin and PS5 Payload Manager feed designed for [VivaLaVent/ps5-bazzite-deck](https://github.com/VivaLaVent/ps5-bazzite-deck).
 
-### Passo a passo de compilação:
+### ✨ Features
+- **Automatic Startup Notification:** Checks for new releases when SteamOS boots and displays a native Steam notification toast **only** if a new version is available.
+- **Release Notes in UI:** Read full release notes and changelogs from VivaLaVent directly inside the Quick Access Menu before deciding to update.
+- **Bilingual Interface:** Supports both English and Portuguese with an instant one-click toggle.
+- **Dual Update Methods:**
+  - **Legacy Mode:** Automatically downloads the official release bundle (`update.tar.xz`), extracts it, and executes `update.sh`.
+  - **Bootc Mode:** Performs atomic container system upgrades via `sudo bootc upgrade`.
+- **Zero-Maintenance PS5 Payload Feed:** Automatically updates `payloads.json` via GitHub Actions on new releases, enabling one-click ELF updates directly on the PS5 screen without USB transfers.
+
+### 📦 Installation on Steam Deck / PS5 Bazzite
+In Desktop Mode terminal (Konsole):
 ```bash
-cd /var/home/ps5/.gemini/antigravity/scratch/ps5-bazzite-decky-plugin
-pnpm install   # ou npm install
-pnpm run build # ou npm run build
+sudo cp -r /var/home/ps5/.gemini/antigravity/scratch/ps5-bazzite-decky-plugin/main.py \
+        /var/home/ps5/.gemini/antigravity/scratch/ps5-bazzite-decky-plugin/dist \
+        ~/homebrew/plugins/ps5-bazzite-updater/ && \
+sudo systemctl restart plugin_loader
 ```
 
-Isso gerará a pasta `dist/` com o arquivo `dist/index.js`.
-
-### Instalação no Decky Loader:
-O Decky Loader carrega os plugins da pasta `~/homebrew/plugins` (ou `/homebrew/plugins` dependendo da instalação).
-
-Copie a pasta inteira do plugin para lá:
-```bash
-mkdir -p ~/homebrew/plugins/ps5-bazzite-updater
-cp -r plugin.json main.py dist ~/homebrew/plugins/ps5-bazzite-updater/
-sudo systemctl restart plugin_loader # Reinicia o serviço do Decky
-```
-
-Abra o menu rápido (...) no Gaming Mode e o plugin aparecerá pronto para uso!
+### 🎮 PS5 Payload Manager Setup
+1. In the PS5 **Payload Manager**, navigate to **Settings** > **Manage Sources** > **Add Source**.
+2. Enter the raw URL of your repository feed:
+   ```text
+   https://raw.githubusercontent.com/Kauanmaffeikraus/ps5-decky-bazzite/main/payloads.json
+   ```
+3. Save. Whenever a new bootloader `.elf` is released, the Payload Manager will display an **Update Available** button.
 
 ---
 
-## 2. Automação Total do `payloads.json` no Payload Manager do PS5
+<a name="português"></a>
+## Português
 
-Para **nunca** precisar editar a versão manualmente:
+Plugin completo para o Decky Loader e feed para o PS5 Payload Manager desenvolvido para o [VivaLaVent/ps5-bazzite-deck](https://github.com/VivaLaVent/ps5-bazzite-deck).
 
-1. **Repositório GitHub com GitHub Actions**:
-   - Este projeto já inclui a automação pronta em [`.github/workflows/update-payloads.yml`](.github/workflows/update-payloads.yml) e o script [`scripts/generate_payloads.py`](scripts/generate_payloads.py).
-   - Quando você subir este projeto para o seu GitHub, o GitHub Actions rodará a cada 6 horas (ou quando você clicar em "Run workflow").
-   - Ele consulta a API do `VivaLaVent/ps5-bazzite-deck`, detecta se saiu versão nova, calcula o hash SHA-256 do `.elf`, atualiza o `payloads.json` e faz o `git commit` automaticamente!
+### ✨ Recursos
+- **Notificação Automática no Boot:** Verifica releases ao iniciar o SteamOS e exibe uma notificação nativa (toast) **apenas** quando houver uma nova versão disponível.
+- **Notas da Release na Interface:** Veja o changelog e as novidades oficiais do VivaLaVent diretamente pelo menu rápido antes de atualizar.
+- **Interface Bilíngue:** Suporte completo a Português e Inglês com troca em um clique.
+- **Modos de Atualização:**
+  - **Modo Legacy:** Baixa o pacote oficial da release (`update.tar.xz`), extrai os arquivos e roda o script `update.sh`.
+  - **Modo Bootc:** Executa atualizações containerizadas via `sudo bootc upgrade`.
+- **Feed Automático para o Payload Manager:** O GitHub Actions atualiza o `payloads.json` de hora em hora. No PS5, o Payload Manager avisa na TV e atualiza o `.elf` sem precisar de pendrive ou FTP.
 
-2. **Configuração Única no PS5**:
-   - No GitHub do seu repositório, abra o arquivo `payloads.json` e clique no botão **Raw**.
-   - Copie o link (ex: `https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/payloads.json`).
-   - No **Payload Manager** do PS5:
-     - Vá em **Settings** > **Manage Sources** > **Add Source**.
-     - Cole a URL Raw.
-     - Salve.
+### 📦 Instalação no Bazzite / PS5
+No terminal do Desktop Mode (Konsole):
+```bash
+sudo cp -r /var/home/ps5/.gemini/antigravity/scratch/ps5-bazzite-decky-plugin/main.py \
+        /var/home/ps5/.gemini/antigravity/scratch/ps5-bazzite-decky-plugin/dist \
+        ~/homebrew/plugins/ps5-bazzite-updater/ && \
+sudo systemctl restart plugin_loader
+```
 
-3. **Resultado**:
-   - Você não precisa mexer em nada manualmente! Quando o autor do Bazzite lançar uma nova versão:
-     1. O GitHub Actions atualiza seu `payloads.json` sozinho.
-     2. O Payload Manager do PS5 avisa na tela que há uma atualização do `.elf`.
-     3. Você clica no botão **Update** no PS5 e ele baixa e substitui o arquivo automaticamente.
+### 🎮 Configuração no PS5 Payload Manager
+1. No **Payload Manager** do PS5, vá em **Settings** > **Manage Sources** > **Add Source**.
+2. Adicione a URL Raw:
+   ```text
+   https://raw.githubusercontent.com/Kauanmaffeikraus/ps5-decky-bazzite/main/payloads.json
+   ```
+3. Salve. O `.elf` mais recente aparecerá para download e com botão de update automático.

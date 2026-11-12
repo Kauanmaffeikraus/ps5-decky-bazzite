@@ -168,7 +168,7 @@ async def fetch_github_release():
         "success": True,
         "latest_version": tag_name,
         "title": name,
-        "notes": body[:400] if body else "",
+        "notes": body if body else "",
         "url": html_url,
         "published_at": published_at,
         "legacy_tar_url": legacy_tar_url
