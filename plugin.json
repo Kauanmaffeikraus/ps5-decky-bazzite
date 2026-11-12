@@ -1,0 +1,7 @@
+{
+  "name": "PS5 Bazzite Updater",
+  "author": "VivaLaVent Community",
+  "flags": ["root"],
+  "description": "Notificador e gerenciador de atualizações do PS5 Bazzite Deck (bootc e legacy).",
+  "version": "1.0.0"
+}

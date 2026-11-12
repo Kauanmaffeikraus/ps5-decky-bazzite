@@ -1,0 +1,40 @@
+name: Auto Update Payloads JSON
+
+on:
+  schedule:
+    # Executa automaticamente a cada 6 horas
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Permite disparar manualmente pelo botão no GitHub Actions
+
+permissions:
+  contents: write
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Verificar e gerar payloads.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/generate_payloads.py
+
+      - name: Commit e Push das alterações
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add payloads.json
+          if git diff --staged --quiet; then
+            echo "Nenhuma atualização encontrada. Tudo em dia!"
+          else
+            git commit -m "chore(feed): auto-update payloads.json para nova versão"
+            git push
+          fi
