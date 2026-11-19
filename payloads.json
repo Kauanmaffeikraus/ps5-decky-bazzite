@@ -5,11 +5,11 @@
     {
       "id": "ps5-bazzite-bootloader",
       "name": "PS5 Bazzite Linux Loader",
-      "filename": "bazzite-bootc-loader-v2.16.1.elf",
-      "url": "https://github.com/VivaLaVent/ps5-bazzite-deck/releases/download/v2.16.1/bazzite-bootc-loader-v2.16.1.elf",
+      "filename": "bazzite-bootc-loader-v2.16.2.elf",
+      "url": "https://github.com/VivaLaVent/ps5-bazzite-deck/releases/download/v2.16.2/bazzite-bootc-loader-v2.16.2.elf",
       "description": "Bootloader kexec para carregar o kernel do Bazzite Deck no PS5",
-      "version": "v2.16.1",
-      "last_update": "2026-11-17",
+      "version": "v2.16.2",
+      "last_update": "2026-11-19",
       "category": "Loaders",
       "author": "VivaLaVent",
       "checksum": "61cfbcee4c531e173bb7e4a1feb527440d237e6e3a8f93c998bfae5462ad9a8a"
